@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment config
+.env
+.env.template
+
+# LangGraph
+.langgraph_api/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reports (keep dir, ignore generated files)
+reports/*.md
+!reports/.gitkeep
+
+# Migration helper
+_patch_agent.py
+uv.lock

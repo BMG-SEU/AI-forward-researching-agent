@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-frontier-explorer"
+version = "1.0.0"
+description = "AI Frontier Explorer - Track, read, and report on cutting-edge AI research using DeepSeek + LangChain"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+keywords = ["ai", "research", "arxiv", "deepseek", "langchain", "agent"]
+authors = [
+    {name = "AI Frontier Explorer"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "deepagents>=0.7.0",
+    "langchain-openai>=0.3.0",
+    "langgraph>=0.3.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+    "ddgs>=1.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/ai-frontier-explorer"
+Repository = "https://github.com/your-username/ai-frontier-explorer"
+
+[project.scripts]
+ai-frontier = "ai_frontier:main"
+
+[tool.setuptools.packages.find]
+include = ["deep_agent*", "tools*"]
