@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "deep-agent"
+version = "0.1.0"
+description = "LangChain 生态 DeepAgent 实操项目"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+deep-agent = "deep_agent.main:main"
+
+[tool.setuptools.packages.find]
+include = ["deep_agent*", "tools*"]

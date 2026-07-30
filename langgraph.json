@@ -1,0 +1,8 @@
+{
+  "dockerfile_lines": [],
+  "dependencies": ["."],
+  "graphs": {
+    "deep_agent": "./deep_agent/studio.py:graph"
+  },
+  "env": ".env"
+}

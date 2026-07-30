@@ -1,0 +1,18 @@
+# DeepAgent 实操项目依赖
+# LangChain 生态核心
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langgraph>=0.3.0
+
+# DeepSeek 使用 OpenAI 兼容接口
+langchain-openai>=0.3.0
+
+# 工具依赖
+httpx>=0.27.0
+duckduckgo-search>=7.0.0
+
+# 运行时
+python-dotenv>=1.0.0
+rich>=13.0.0
+typing-extensions>=4.12.0
