@@ -1,35 +1,33 @@
 """AI 前沿探索 Agent — 跟踪、研读、报告 AI 前沿技术"""
 
+import sqlite3
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
+from functools import lru_cache
 
 from deepagents import create_deep_agent
-from deepagents.backends import CompositeBackend, StateBackend, StoreBackend
-from deepagents.backends.utils import create_file_data
-from langgraph.store.memory import InMemoryStore
+from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
+from deep_agent.config import settings
 from deep_agent.llm import create_llm
 from tools import get_all_tools
 
-_store = InMemoryStore()
+@lru_cache(maxsize=1)
+def _create_checkpointer():
+    """创建可跨进程恢复会话的 SQLite checkpointer。"""
+    try:
+        from langgraph.checkpoint.sqlite import SqliteSaver
+    except ImportError as exc:
+        raise RuntimeError(
+            "缺少 langgraph-checkpoint-sqlite，请重新安装项目依赖。"
+        ) from exc
 
-
-def _seed_memory():
-    """初始化记忆和技能文件"""
-    import os
-
-    files = {
-        "/memories/AGENTS.md": "AGENTS.md",
-        "/memories/preferences.md": "memories/preferences.md",
-        "/skills/ai-research/SKILL.md": "skills/ai-research/SKILL.md",
-    }
-    for store_path, local_path in files.items():
-        if os.path.exists(local_path):
-            with open(local_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            _store.put(("deep-agent",), store_path, create_file_data(content))
-
+    path = settings.checkpoint_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, check_same_thread=False)
+    return SqliteSaver(connection)
 
 def build_agent(
     llm: ChatOpenAI | None = None,
@@ -40,22 +38,31 @@ def build_agent(
     tools = tools or get_all_tools()
     system_prompt = system_prompt or _frontier_system_prompt()
 
-    _seed_memory()
+    project_backend = FilesystemBackend(
+        root_dir=settings.project_root,
+        virtual_mode=True,
+    )
 
     return create_deep_agent(
         model=llm,
         tools=tools,
         system_prompt=system_prompt,
-        memory=["/memories/AGENTS.md", "/memories/preferences.md"],
+        memory=[
+            "/AGENTS.md",
+            "/memories/preferences.md",
+            "/memories/reading_history.md",
+        ],
         skills=["/skills/"],
         backend=CompositeBackend(
             default=StateBackend(),
             routes={
-                "/memories/": StoreBackend(namespace=lambda rt: ("deep-agent",)),
-                "/skills/": StoreBackend(namespace=lambda rt: ("deep-agent",)),
+                "/AGENTS.md": project_backend,
+                "/memories/": project_backend,
+                "/skills/": project_backend,
             },
         ),
-        store=_store,
+        checkpointer=_create_checkpointer(),
+        name="ai-frontier-explorer",
     )
 
 
@@ -120,7 +127,7 @@ def _frontier_system_prompt() -> str:
 ### 阶段五：提交报告
 1. 使用 save_report 工具将报告保存到 reports/ 目录（实际文件）
 2. 文件名格式: YYYY-MM-DD-主题.md
-3. 更新 reading_history 记录已读内容
+3. save_report 会自动更新 /memories/reading_history.md，无需重复写入
 4. 用中文总结给用户
 
 ## 工具使用指南
@@ -137,13 +144,27 @@ def _frontier_system_prompt() -> str:
 - 报告必须用中文撰写"""
 
 
-def run_agent(agent, message: str, thread_id: str = "default") -> str:
-    """运行 Agent 并返回回答"""
-    config = {"configurable": {"thread_id": thread_id}}
-    result = agent.invoke(
+def run_agent(agent, message: str, thread_id: str | None = None) -> str:
+    """运行 Agent，应用会话持久化、迭代上限和整体等待时限。"""
+    config = {
+        "configurable": {"thread_id": thread_id or settings.agent_thread_id},
+        "recursion_limit": settings.agent_max_iterations,
+    }
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(
+        agent.invoke,
         {"messages": [{"role": "user", "content": message}]},
         config,
     )
+    try:
+        result = future.result(timeout=settings.agent_max_execution_time)
+    except FutureTimeoutError as exc:
+        future.cancel()
+        raise TimeoutError(
+            f"Agent 执行超过 {settings.agent_max_execution_time} 秒，已停止等待。"
+        ) from exc
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
     for msg in reversed(result["messages"]):
         if isinstance(msg, dict) and msg.get("role") == "assistant":
             return msg["content"]

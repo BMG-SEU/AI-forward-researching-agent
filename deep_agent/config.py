@@ -1,5 +1,7 @@
 """配置管理 - 使用 pydantic-settings 从 .env 加载"""
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +29,18 @@ class Settings(BaseSettings):
     # Agent 行为配置
     agent_max_iterations: int = 15
     agent_max_execution_time: int = 120  # 秒
+    agent_thread_id: str = "default"
+    checkpoint_db: str = ".data/checkpoints.sqlite"
+
+    @property
+    def project_root(self) -> Path:
+        """项目根目录，不依赖启动命令的当前工作目录。"""
+        return Path(__file__).resolve().parent.parent
+
+    @property
+    def checkpoint_path(self) -> Path:
+        path = Path(self.checkpoint_db)
+        return path if path.is_absolute() else self.project_root / path
 
     @property
     def is_deepseek_configured(self) -> bool:

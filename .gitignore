@@ -31,3 +31,4 @@ reports/*.md
 # Migration helper
 _patch_agent.py
 uv.lock
+.data/

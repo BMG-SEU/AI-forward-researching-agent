@@ -15,7 +15,7 @@ def create_llm() -> ChatOpenAI:
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
         temperature=0.7,
-        timeout=60,
+        timeout=settings.agent_max_execution_time,
         max_retries=2,
     )
 
@@ -29,6 +29,6 @@ def create_deep_research_llm() -> ChatOpenAI:
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
         temperature=0.1,
-        timeout=120,
+        timeout=settings.agent_max_execution_time,
         max_retries=3,
     )
