@@ -20,3 +20,18 @@ def test_data_dir_can_be_overridden(tmp_path, monkeypatch):
     assert configured.data_dir == tmp_path.resolve()
     assert configured.reports_dir == tmp_path.resolve() / "reports"
     assert configured.checkpoint_path == tmp_path.resolve() / "checkpoints.sqlite"
+
+
+def test_reports_dir_can_be_overridden_by_env(tmp_path, monkeypatch):
+    target = tmp_path / "my_reports"
+    monkeypatch.setenv("REPORTS_DIR", str(target))
+    configured = Settings()
+    assert configured.reports_dir == target.resolve()
+    # checkpoint 与 memory 不受影响，仍随 data_dir
+    assert configured.checkpoint_path == configured.data_dir / "checkpoints.sqlite"
+
+
+def test_reports_dir_expands_user_and_relative(tmp_path, monkeypatch):
+    monkeypatch.setenv("REPORTS_DIR", str(tmp_path / "a" / ".." / "b"))
+    configured = Settings()
+    assert configured.reports_dir == (tmp_path / "b").resolve()

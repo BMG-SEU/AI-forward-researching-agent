@@ -41,10 +41,17 @@ def get_all_tools() -> List:
 
     @tool
     def save_report(content: str, filename: str = "") -> str:
-        """Save a research report to the reports/ directory on the real filesystem. Content should be in Markdown."""
+        """Save a research report to the current reports directory. Content should be in Markdown."""
         from tools.report_tools import save_report as _save
         return _save(content, filename=filename if filename else None)
     tools.append(save_report)
+
+    @tool
+    def set_reports_dir(path: str) -> str:
+        """Change the directory where reports are saved. Use this when the user asks to save reports to a specific folder (e.g. '把报告保存到 D:/xxx'). The new directory is remembered for future runs."""
+        from tools.report_tools import set_reports_dir as _set
+        return _set(path)
+    tools.append(set_reports_dir)
 
     return tools
 

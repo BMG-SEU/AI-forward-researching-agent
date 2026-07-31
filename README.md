@@ -56,6 +56,9 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=lsv2_pt_your_langsmith_key
 LANGCHAIN_PROJECT=ai-frontier-explorer
+
+# 报告保存位置（可选，默认在用户数据目录的 reports/ 下）
+# REPORTS_DIR=D:\MyReports\papers
 ```
 
 ### 3. Launch

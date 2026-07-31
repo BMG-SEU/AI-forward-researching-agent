@@ -1,13 +1,68 @@
-"""报告工具 - 安全地保存报告并维护阅读历史。"""
+"""报告工具 - 动态报告目录、安全保存并维护阅读历史。
 
+报告目录可通过三种方式决定（优先级从高到低）：
+1. set_reports_dir() 在对话中设置并持久化（最高优先级，代表用户最新意图）
+2. REPORTS_DIR 环境变量 / .env
+3. 默认 <data_dir>/reports
+"""
+
+import json
 from datetime import datetime
 from pathlib import Path
 import re
 
 from deep_agent.config import settings
 
-REPORTS_DIR = settings.reports_dir
 HISTORY_FILE = settings.data_dir / "memories" / "reading_history.md"
+CONFIG_FILE = settings.data_dir / "config.json"
+
+
+def _load_saved_reports_dir() -> Path | None:
+    """读取对话中持久化的报告目录（若存在）。"""
+    try:
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        saved = data.get("reports_dir")
+        if saved:
+            return Path(saved).expanduser().resolve()
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def get_reports_dir() -> Path:
+    """当前报告目录：对话设置 > 环境变量 > 默认。"""
+    saved = _load_saved_reports_dir()
+    if saved is not None:
+        return saved
+    return settings.reports_dir
+
+
+def set_reports_dir(path: str) -> str:
+    """将报告保存目录改为指定路径，并持久化到配置。
+
+    Args:
+        path: 目标目录的绝对或相对路径。
+
+    Returns:
+        确认信息，包含新的报告目录。
+    """
+    try:
+        new_dir = Path(path).expanduser().resolve()
+        new_dir.mkdir(parents=True, exist_ok=True)
+        data = {}
+        if CONFIG_FILE.exists():
+            try:
+                data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                data = {}
+        data["reports_dir"] = str(new_dir)
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return f"报告保存目录已更改为: {new_dir}"
+    except OSError as exc:
+        return f"无法设置报告目录: {exc!s}"
 
 
 def _safe_filename(filename: str) -> str:
@@ -36,15 +91,16 @@ def _append_reading_history(filename: str, topic: str) -> None:
 
 
 def save_report(content: str, filename: str | None = None) -> str:
-    """将 Markdown 报告保存到固定目录，并记录阅读历史。"""
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    """将 Markdown 报告保存到当前报告目录，并记录阅读历史。"""
+    reports_dir = get_reports_dir()
+    reports_dir.mkdir(parents=True, exist_ok=True)
     topic = _topic_from_content(content)
     if not filename:
         filename = f"{datetime.now():%Y-%m-%d}-{topic}"
     safe_name = _safe_filename(filename)
-    filepath = (REPORTS_DIR / safe_name).resolve()
-    if filepath.parent != REPORTS_DIR.resolve():
-        raise ValueError("报告路径必须位于 reports 目录内")
+    filepath = (reports_dir / safe_name).resolve()
+    if filepath.parent != reports_dir.resolve():
+        raise ValueError("报告路径必须位于当前报告目录内")
     filepath.write_text(content, encoding="utf-8")
     _append_reading_history(safe_name, topic)
     return f"报告已保存至: {filepath}"

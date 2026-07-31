@@ -15,10 +15,15 @@ from deep_agent import __version__
 from deep_agent.agent import build_agent, run_agent
 from deep_agent.config import settings
 from tools import get_all_tools, get_tool_names
+from tools.report_tools import get_reports_dir
 
 console = Console()
 _agent = None
-REPORTS_DIR = settings.reports_dir
+
+
+def _reports_dir():
+    """动态读取当前报告目录。"""
+    return get_reports_dir()
 
 
 def get_agent():
@@ -56,13 +61,13 @@ def print_banner():
     console.print(f"  Version: {__version__}", style="dim")
     console.print(f"  Model: {settings.deepseek_model}", style="dim")
     console.print(f"  Tools: {', '.join(get_tool_names())}", style="dim")
-    console.print(f"  Reports: {REPORTS_DIR}", style="dim")
+    console.print(f"  Reports: {_reports_dir()}", style="dim")
     console.print()
 
 
 def show_status():
     """显示最近生成的报告。"""
-    reports = sorted(REPORTS_DIR.glob("*.md"))
+    reports = sorted(_reports_dir().glob("*.md"))
     table = Table(title="📊 已有报告", box=box.ROUNDED, header_style="bold cyan")
     table.add_column("文件名", style="cyan")
     table.add_column("大小")
@@ -135,7 +140,7 @@ def main():
             continue
         if cmd.startswith("/read "):
             filename = cmd[6:].strip()
-            path = REPORTS_DIR / Path(filename).name
+            path = _reports_dir() / Path(filename).name
             if path.exists():
                 console.print(Panel(path.read_text(encoding="utf-8"), title=f"📄 {filename}", border_style="blue"))
             else:

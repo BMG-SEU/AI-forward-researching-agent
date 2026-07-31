@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from dotenv import dotenv_values
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +57,8 @@ class Settings(BaseSettings):
     agent_thread_id: str = "default"
     checkpoint_db: str = "checkpoints.sqlite"
     ai_frontier_home: str = ""
+    # 报告输出目录，可单独覆盖；留空则默认 data_dir/reports
+    reports_dir_override: str = Field(default="", validation_alias="REPORTS_DIR")
 
     @property
     def resource_root(self) -> Path:
@@ -75,6 +78,9 @@ class Settings(BaseSettings):
 
     @property
     def reports_dir(self) -> Path:
+        """报告输出目录；REPORTS_DIR 环境变量优先，否则 data_dir/reports。"""
+        if self.reports_dir_override:
+            return Path(self.reports_dir_override).expanduser().resolve()
         return self.data_dir / "reports"
 
     @property

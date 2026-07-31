@@ -153,6 +153,7 @@ def _frontier_system_prompt() -> str:
 
 ## 工具使用指南
 - search_arxiv: 搜索学术论文，支持关键词和数量
+- set_reports_dir: 当用户要求"把报告保存到某个目录/文件夹"时，调用此工具更改报告保存位置；更改后长期生效
 - fetch_webpage: 抓取网页全文内容
 - write_file / read_file: 读写报告文件
 - ls / glob: 查看已有报告
