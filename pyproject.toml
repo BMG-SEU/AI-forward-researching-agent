@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-frontier-explorer"
-version = "1.0.0"
+version = "1.0.4"
 description = "AI Frontier Explorer - Track, read, and report on cutting-edge AI research using DeepSeek + LangChain"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,10 +23,12 @@ classifiers = [
 dependencies = [
     "deepagents>=0.7.0",
     "langchain-openai>=0.3.0",
+    "langchain-core>=0.3.0",
     "langgraph>=0.3.0",
     "langgraph-checkpoint-sqlite>=3.0.0",
     "rich>=13.0.0",
     "python-dotenv>=1.0.0",
+    "pydantic-settings>=2.0.0",
     "ddgs>=1.0.0",
     "httpx>=0.27.0",
 ]
@@ -43,3 +45,6 @@ ai-frontier = "deep_agent.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["deep_agent*", "tools*"]
+
+[tool.setuptools.package-data]
+deep_agent = ["resources/**/*.md"]

@@ -4,9 +4,10 @@ from datetime import datetime
 from pathlib import Path
 import re
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-REPORTS_DIR = PROJECT_ROOT / "reports"
-HISTORY_FILE = PROJECT_ROOT / "memories" / "reading_history.md"
+from deep_agent.config import settings
+
+REPORTS_DIR = settings.reports_dir
+HISTORY_FILE = settings.data_dir / "memories" / "reading_history.md"
 
 
 def _safe_filename(filename: str) -> str:

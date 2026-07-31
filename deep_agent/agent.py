@@ -1,5 +1,6 @@
 """AI 前沿探索 Agent — 跟踪、研读、报告 AI 前沿技术"""
 
+import shutil
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
@@ -13,6 +14,21 @@ from langchain_openai import ChatOpenAI
 from deep_agent.config import settings
 from deep_agent.llm import create_llm
 from tools import get_all_tools
+
+def _ensure_runtime_files() -> None:
+    """首次运行时将 wheel 内的默认资源复制到用户可写目录。"""
+    mappings = {
+        settings.resource_root / "AGENTS.md": settings.data_dir / "memories" / "AGENTS.md",
+        settings.resource_root / "memories" / "preferences.md": settings.data_dir / "memories" / "preferences.md",
+        settings.resource_root / "memories" / "reading_history.md": settings.data_dir / "memories" / "reading_history.md",
+        settings.resource_root / "skills" / "ai-research" / "SKILL.md": settings.data_dir / "skills" / "ai-research" / "SKILL.md",
+    }
+    for source, destination in mappings.items():
+        if not source.is_file():
+            raise RuntimeError(f"安装包缺少运行资源: {source}")
+        if not destination.exists():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
 
 @lru_cache(maxsize=1)
 def _create_checkpointer():
@@ -38,8 +54,14 @@ def build_agent(
     tools = tools or get_all_tools()
     system_prompt = system_prompt or _frontier_system_prompt()
 
-    project_backend = FilesystemBackend(
-        root_dir=settings.project_root,
+    _ensure_runtime_files()
+
+    memory_backend = FilesystemBackend(
+        root_dir=settings.data_dir / "memories",
+        virtual_mode=True,
+    )
+    skills_backend = FilesystemBackend(
+        root_dir=settings.data_dir / "skills",
         virtual_mode=True,
     )
 
@@ -48,7 +70,7 @@ def build_agent(
         tools=tools,
         system_prompt=system_prompt,
         memory=[
-            "/AGENTS.md",
+            "/memories/AGENTS.md",
             "/memories/preferences.md",
             "/memories/reading_history.md",
         ],
@@ -56,9 +78,8 @@ def build_agent(
         backend=CompositeBackend(
             default=StateBackend(),
             routes={
-                "/AGENTS.md": project_backend,
-                "/memories/": project_backend,
-                "/skills/": project_backend,
+                "/memories/": memory_backend,
+                "/skills/": skills_backend,
             },
         ),
         checkpointer=_create_checkpointer(),
@@ -148,7 +169,7 @@ def run_agent(agent, message: str, thread_id: str | None = None) -> str:
     """运行 Agent，应用会话持久化、迭代上限和整体等待时限。"""
     config = {
         "configurable": {"thread_id": thread_id or settings.agent_thread_id},
-        "recursion_limit": settings.agent_max_iterations,
+        "recursion_limit": settings.agent_recursion_limit,
     }
     executor = ThreadPoolExecutor(max_workers=1)
     future = executor.submit(

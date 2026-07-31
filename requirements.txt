@@ -19,3 +19,4 @@ ddgs>=1.0.0
 python-dotenv>=1.0.0
 rich>=13.0.0
 typing-extensions>=4.12.0
+pydantic-settings>=2.0.0

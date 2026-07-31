@@ -40,7 +40,13 @@ pip install -r requirements.txt
 
 ### 2. Configure
 
-Create `.env` file:
+Create `.env` file. On Windows PowerShell, use `Set-Content` so the file encoding is explicit:
+
+```powershell
+"DEEPSEEK_API_KEY=sk-your_deepseek_key" | Set-Content -Encoding utf8 .env
+```
+
+The CLI also accepts UTF-16 `.env` files produced by Windows PowerShell 5. Full example:
 
 ```env
 DEEPSEEK_API_KEY=sk-your_deepseek_key

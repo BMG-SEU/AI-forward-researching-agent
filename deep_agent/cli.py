@@ -1,23 +1,24 @@
-"""AI 前沿探索 Agent — 独立 CLI 入口"""
+"""AI 前沿探索 Agent — 命令行入口。"""
 
-import sys
 import signal
-from datetime import datetime
-from rich.console import Console
-from rich.panel import Panel
-from rich.markdown import Markdown
-from rich.prompt import Prompt
-from rich.table import Table
-from rich import box
+import sys
 from pathlib import Path
 
-from deep_agent.config import settings
+from rich import box
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.table import Table
+
+from deep_agent import __version__
 from deep_agent.agent import build_agent, run_agent
+from deep_agent.config import settings
 from tools import get_all_tools, get_tool_names
 
 console = Console()
 _agent = None
-REPORTS_DIR = settings.project_root / "reports"
+REPORTS_DIR = settings.reports_dir
 
 
 def get_agent():
@@ -27,29 +28,47 @@ def get_agent():
     return _agent
 
 
+def execute_agent(message: str, status: str = "思考中...") -> str | None:
+    """运行 Agent，并让运行时错误不再终止整个 CLI。"""
+    try:
+        with console.status(f"[bold green]{status}", spinner="dots"):
+            return run_agent(get_agent(), message)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]任务已中断，程序仍可继续使用。[/yellow]")
+    except Exception as exc:
+        console.print(Panel(
+            f"[red]{type(exc).__name__}: {exc}[/red]\n\n"
+            "程序未退出。你可以调整关键词后重试，或输入 /help 查看命令。",
+            title="任务执行失败",
+            border_style="red",
+        ))
+    return None
+
+
 def print_banner():
     banner = r"""
    ╔══════════════════════════════════════════╗
-   ║    AI Frontier Explorer  v1.0            ║
+   ║    AI Frontier Explorer                  ║
    ║   追踪前沿 · 深度研读 · 通俗报告          ║
    ╚══════════════════════════════════════════╝
     """
     console.print(banner, style="bold cyan")
+    console.print(f"  Version: {__version__}", style="dim")
     console.print(f"  Model: {settings.deepseek_model}", style="dim")
     console.print(f"  Tools: {', '.join(get_tool_names())}", style="dim")
-    console.print(f"  Reports: {Path('reports').absolute()}", style="dim")
+    console.print(f"  Reports: {REPORTS_DIR}", style="dim")
     console.print()
 
 
 def show_status():
-    """显示当前状态"""
+    """显示最近生成的报告。"""
     reports = sorted(REPORTS_DIR.glob("*.md"))
     table = Table(title="📊 已有报告", box=box.ROUNDED, header_style="bold cyan")
     table.add_column("文件名", style="cyan")
     table.add_column("大小")
-    for r in reports[-10:]:
-        size = r.stat().st_size
-        table.add_row(r.name, f"{size}B" if size < 1024 else f"{size//1024}KB")
+    for report in reports[-10:]:
+        size = report.stat().st_size
+        table.add_row(report.name, f"{size}B" if size < 1024 else f"{size // 1024}KB")
     if reports:
         console.print(table)
     else:
@@ -77,15 +96,13 @@ def print_help():
 
 
 def main():
-    signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
-
+    signal.signal(signal.SIGINT, lambda _signal, _frame: sys.exit(0))
     if not settings.is_deepseek_configured:
         console.print("[yellow]请先配置 .env 中的 DEEPSEEK_API_KEY[/yellow]")
         sys.exit(1)
 
     print_banner()
     show_status()
-
     console.print("输入 [bold]/track <主题>[/bold] 开始追踪\n", style="dim")
 
     while True:
@@ -93,71 +110,64 @@ def main():
             user_input = Prompt.ask("[bold cyan]You[/bold cyan]")
         except EOFError:
             break
-
         if not user_input.strip():
             continue
-
         cmd = user_input.strip()
 
         if cmd == "/exit":
             console.print("[yellow]再见！[/yellow]")
             break
-        elif cmd == "/help":
+        if cmd == "/help":
             print_help()
             continue
-        elif cmd == "/tools":
+        if cmd == "/tools":
             table = Table(box=box.ROUNDED, header_style="bold magenta")
             table.add_column("Tool", style="cyan")
             table.add_column("Description")
-            for t in get_all_tools():
-                name = t.name if hasattr(t, "name") else t.__name__
-                desc = t.description if hasattr(t, "description") else ""
-                table.add_row(name, desc.split("\n")[0][:80])
+            for tool in get_all_tools():
+                name = tool.name if hasattr(tool, "name") else tool.__name__
+                description = tool.description if hasattr(tool, "description") else ""
+                table.add_row(name, description.split("\n")[0][:80])
             console.print(table)
             continue
-        elif cmd == "/reports":
+        if cmd == "/reports":
             show_status()
             continue
-        elif cmd.startswith("/read "):
-            fname = cmd[6:].strip()
-            path = REPORTS_DIR / Path(fname).name
+        if cmd.startswith("/read "):
+            filename = cmd[6:].strip()
+            path = REPORTS_DIR / Path(filename).name
             if path.exists():
-                console.print(Panel(path.read_text(encoding="utf-8"),
-                              title=f"📄 {fname}", border_style="blue"))
+                console.print(Panel(path.read_text(encoding="utf-8"), title=f"📄 {filename}", border_style="blue"))
             else:
-                console.print(f"[red]报告 {fname} 不存在[/red]")
+                console.print(f"[red]报告 {filename} 不存在[/red]")
             continue
-        elif cmd.startswith("/remember "):
-            agent = get_agent()
-            resp = run_agent(agent, f"请记住：{cmd[10:]}")
-            console.print(Panel(resp, title="DeepAgent", border_style="green"))
+        if cmd.startswith("/remember "):
+            response = execute_agent(f"请记住：{cmd[10:]}", "保存记忆中...")
+            if response is not None:
+                console.print(Panel(response, title="DeepAgent", border_style="green"))
             continue
-        elif cmd.startswith("/search "):
-            agent = get_agent()
-            resp = run_agent(agent, f"用 search_arxiv 搜索 {cmd[8:]}")
-            console.print(Panel(Markdown(resp), title="搜索结果", border_style="blue"))
+        if cmd.startswith("/search "):
+            response = execute_agent(f"用 search_arxiv 搜索 {cmd[8:]}", "搜索论文中...")
+            if response is not None:
+                console.print(Panel(Markdown(response), title="搜索结果", border_style="blue"))
             continue
-        elif cmd.startswith("/track "):
+        if cmd.startswith("/track "):
             topic = cmd[7:]
-            agent = get_agent()
             console.print(f"\n[bold cyan]🎯 开始追踪: {topic}[/bold cyan]")
             console.print("[dim]这可能需要几分钟...[/dim]\n")
-
-            with console.status("[bold green]搜索→研读→报告中...", spinner="dots"):
-                resp = run_agent(agent, f"请帮我追踪 AI 前沿主题：{topic}。按照你的工作流程，搜索论文、深度研读，然后生成结构化报告保存到 reports/ 目录。")
-
-            console.print()
-            console.print(Panel(Markdown(resp), title="✅ 追踪完成", border_style="green"))
-            show_status()
+            response = execute_agent(
+                f"请帮我追踪 AI 前沿主题：{topic}。按照你的工作流程，搜索论文、深度研读，然后生成结构化报告保存到 reports/ 目录。",
+                "搜索→研读→报告中...",
+            )
+            if response is not None:
+                console.print(Panel(Markdown(response), title="✅ 追踪完成", border_style="green"))
+                show_status()
             continue
 
-        # 普通对话
-        agent = get_agent()
-        with console.status("[bold green]思考中...", spinner="dots"):
-            resp = run_agent(agent, cmd)
-        console.print()
-        console.print(Panel(Markdown(resp), title="DeepAgent", border_style="green"))
-        console.print()
+        response = execute_agent(cmd)
+        if response is not None:
+            console.print(Panel(Markdown(response), title="DeepAgent", border_style="green"))
+            console.print()
 
 
 if __name__ == "__main__":
