@@ -6,26 +6,21 @@
 3. 默认 <data_dir>/reports
 """
 
-import json
 from datetime import datetime
 from pathlib import Path
 import re
 
-from deep_agent.config import settings
+from deep_agent.config import save_settings, settings
 
 HISTORY_FILE = settings.data_dir / "memories" / "reading_history.md"
-CONFIG_FILE = settings.data_dir / "config.json"
 
 
 def _load_saved_reports_dir() -> Path | None:
     """读取对话中持久化的报告目录（若存在）。"""
-    try:
-        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-        saved = data.get("reports_dir")
-        if saved:
-            return Path(saved).expanduser().resolve()
-    except (OSError, ValueError):
-        pass
+    from deep_agent.config import _load_persisted
+    saved = _load_persisted().get("reports_dir")
+    if saved:
+        return Path(saved).expanduser().resolve()
     return None
 
 
@@ -49,17 +44,7 @@ def set_reports_dir(path: str) -> str:
     try:
         new_dir = Path(path).expanduser().resolve()
         new_dir.mkdir(parents=True, exist_ok=True)
-        data = {}
-        if CONFIG_FILE.exists():
-            try:
-                data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                data = {}
-        data["reports_dir"] = str(new_dir)
-        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CONFIG_FILE.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        save_settings({"reports_dir": str(new_dir)})
         return f"报告保存目录已更改为: {new_dir}"
     except OSError as exc:
         return f"无法设置报告目录: {exc!s}"

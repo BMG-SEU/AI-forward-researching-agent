@@ -13,7 +13,7 @@ from rich.table import Table
 
 from deep_agent import __version__
 from deep_agent.agent import build_agent, run_agent
-from deep_agent.config import settings
+from deep_agent.config import save_settings, settings
 from tools import get_all_tools, get_tool_names
 from tools.report_tools import get_reports_dir
 
@@ -88,6 +88,7 @@ def print_help():
 - `/reports` — 查看已有报告
 - `/read <文件名>` — 阅读某份报告
 - `/search <关键词>` — 快速搜索论文
+- `/key <sk-xxx>` — 设置 DeepSeek API Key（持久化，升级/换目录不丢失）
 - `/remember <内容>` — 让 Agent 记住你的偏好
 - `/tools` — 查看所有工具
 - `/help` — 帮助
@@ -145,6 +146,21 @@ def main():
                 console.print(Panel(path.read_text(encoding="utf-8"), title=f"📄 {filename}", border_style="blue"))
             else:
                 console.print(f"[red]报告 {filename} 不存在[/red]")
+            continue
+        if cmd == "/key" or cmd.startswith("/key "):
+            key_value = cmd[4:].strip()
+            if not key_value:
+                console.print("[yellow]用法: /key sk-你的DeepSeek密钥[/yellow]")
+                continue
+            if not key_value.startswith("sk-"):
+                console.print("[red]Key 应以 sk- 开头，请检查是否复制完整。[/red]")
+                continue
+            try:
+                save_settings({"deepseek_api_key": key_value})
+                settings.deepseek_api_key = key_value
+                console.print("[green]API Key 已保存（持久化到用户数据目录，升级/换目录不丢失）。[/green]")
+            except Exception as exc:
+                console.print(f"[red]保存失败: {exc}[/red]")
             continue
         if cmd.startswith("/remember "):
             response = execute_agent(f"请记住：{cmd[10:]}", "保存记忆中...")

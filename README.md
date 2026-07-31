@@ -71,6 +71,16 @@ start.bat
 python ai_frontier.py
 ```
 
+### 4. 设置 API Key（持久化，升级不丢失）
+
+```text
+# 方式一：CLI 命令（推荐，保存到用户数据目录，升级/换目录不丢）
+/key sk-你的DeepSeek密钥
+
+# 方式二：.env 文件（首次运行会自动迁移到持久化配置）
+DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
+```
+
 ## 🎮 Usage
 
 ```
@@ -95,6 +105,7 @@ You > /remember 我关注AI安全方向
 | `/search <query>` | Quick arXiv search |
 | `/reports` | List generated reports |
 | `/read <file>` | Read a saved report |
+| `/key <sk-xxx>` | Set and persist DeepSeek API key (survives upgrades) |
 | `/remember <info>` | Save a preference to memory |
 | `/tools` | List available tools |
 | `/help` | Show help |

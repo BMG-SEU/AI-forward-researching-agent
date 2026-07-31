@@ -25,9 +25,9 @@ def test_safe_filename_always_returns_markdown_basename():
 
 
 def test_set_reports_dir_persists_and_save_uses_it(tmp_path, monkeypatch):
-    config_file = tmp_path / "config.json"
+    from deep_agent import config as config_module
+    monkeypatch.setattr(config_module, "_compute_data_dir", lambda: tmp_path)
     history = tmp_path / "memories" / "reading_history.md"
-    monkeypatch.setattr(report_tools, "CONFIG_FILE", config_file)
     monkeypatch.setattr(report_tools, "HISTORY_FILE", history)
 
     new_dir = tmp_path / "custom-reports"
@@ -35,7 +35,8 @@ def test_set_reports_dir_persists_and_save_uses_it(tmp_path, monkeypatch):
 
     assert str(new_dir.resolve()) in message
     assert report_tools.get_reports_dir() == new_dir.resolve()
-    # 持久化文件已写入
+    # 持久化文件已写入统一 config.json
+    config_file = tmp_path / "config.json"
     assert config_file.exists()
     assert "custom-reports" in config_file.read_text(encoding="utf-8")
 
@@ -46,8 +47,8 @@ def test_set_reports_dir_persists_and_save_uses_it(tmp_path, monkeypatch):
 
 
 def test_set_reports_dir_creates_missing_directory(tmp_path, monkeypatch):
-    config_file = tmp_path / "config.json"
-    monkeypatch.setattr(report_tools, "CONFIG_FILE", config_file)
+    from deep_agent import config as config_module
+    monkeypatch.setattr(config_module, "_compute_data_dir", lambda: tmp_path)
     nested = tmp_path / "a" / "b" / "c"
     report_tools.set_reports_dir(str(nested))
     assert nested.is_dir()

@@ -1,17 +1,36 @@
 import os
 
-from deep_agent.config import Settings, load_dotenv_compat
+from deep_agent import config as config_module
+from deep_agent.config import Settings, load_dotenv_compat, load_persisted_config, save_settings
 
 
 def test_load_dotenv_accepts_powershell_utf16(tmp_path, monkeypatch):
     env_file = tmp_path / ".env"
     env_file.write_text("DEEPSEEK_API_KEY=sk-utf16\n", encoding="utf-16")
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setattr(config_module, "_compute_data_dir", lambda: tmp_path)
+    config_module._config_file.cache_clear() if hasattr(config_module._config_file, "cache_clear") else None
 
     load_dotenv_compat(env_file)
 
     assert os.environ["DEEPSEEK_API_KEY"] == "sk-utf16"
     assert Settings().deepseek_api_key == "sk-utf16"
+    # key 已迁移到持久化配置
+    persisted = config_module._load_persisted()
+    assert persisted.get("deepseek_api_key") == "sk-utf16"
+
+
+def test_api_key_persists_across_runs(tmp_path, monkeypatch):
+    monkeypatch.setattr(config_module, "_compute_data_dir", lambda: tmp_path)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    # 第一次：保存 key 到持久化
+    save_settings({"deepseek_api_key": "sk-persisted-abc"})
+    # 模拟新进程：清掉 env，从持久化加载
+    monkeypatch.delenv("deepseek_api_key", raising=False)
+    load_persisted_config()
+
+    assert Settings().deepseek_api_key == "sk-persisted-abc"
 
 
 def test_data_dir_can_be_overridden(tmp_path, monkeypatch):
